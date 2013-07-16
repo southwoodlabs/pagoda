@@ -44,9 +44,17 @@ module Shwedagon
 
     # Merge existing yaml with post params
     def merge_config(yaml, params)
-      yaml['published'] = !(params[:post].has_key? 'draft' and
-        params[:post]['draft'] == 'on')
-      yaml['title']     = params[:post][:title]
+      if params['post'].has_key? 'yaml'
+        params['post']['yaml'].each do |key, value|
+          if value == 'true'
+            yaml[key] = true
+          elsif value == 'false'
+            yaml[key] = false
+          else
+            yaml[key] = YAML::load(value)
+          end
+        end
+      end
 
       yaml
     end
@@ -154,5 +162,21 @@ module Shwedagon
       end
     end
 
+    get '/images' do
+      @images = Dir.entries(File.join(jekyll_site.source, *%w[img]))
+      mustache :images
+    end
+
+    post '/images/upload' do
+      unless params[:file] &&
+        (tmpfile = params[:file][:tempfile]) &&
+        (name = params[:file][:filename])
+        raise 'No file uploaded'
+      else
+        file = File.join(jekyll_site.source, *%w[img], name)
+        File.open(file, 'wb') { |file| file.write(tmpfile.read)}
+        redirect @base_url + '/images'
+      end
+    end
   end
 end
